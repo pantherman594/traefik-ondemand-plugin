@@ -1,4 +1,4 @@
-package traefik_ondemand_plugin
+package ondemand
 
 import (
 	"context"

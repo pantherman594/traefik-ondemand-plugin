@@ -1,4 +1,4 @@
-package traefik_ondemand_plugin
+package ondemand
 
 import (
 	"context"
@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"strings"
-	"time"
 )
 
 const (
@@ -15,16 +14,10 @@ const (
 
 const defaultTimeoutSeconds = 60
 
-// Net client is a custom client to timeout after 2 seconds if the service is not ready
-var netClient = &http.Client{
-	Timeout: time.Second * 2,
-}
-
-// Config the plugin configuration
+// Config the config that holds the service name and the timeout in seconds
 type Config struct {
-	Name       string
-	ServiceUrl string
-	Timeout    uint64
+	Name    string
+	Timeout uint64
 }
 
 // CreateConfig creates a config with its default values
@@ -34,6 +27,13 @@ func CreateConfig() *Config {
 	}
 }
 
+func (c *Config) validate() error {
+	if len(c.Name) == 0 {
+		return fmt.Errorf("name cannot be null")
+	}
+	return nil
+}
+
 // Ondemand holds the request for the on demand service
 type Ondemand struct {
 	request string
@@ -41,26 +41,13 @@ type Ondemand struct {
 	next    http.Handler
 }
 
-func buildRequest(url string, name string, timeout uint64) (string, error) {
-	// TODO: Check url validity
-	request := fmt.Sprintf("%s?name=%s&timeout=%d", url, name, timeout)
-	return request, nil
-}
-
 // New function creates the configuration
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	if len(config.ServiceUrl) == 0 {
-		return nil, fmt.Errorf("serviceUrl cannot be null")
-	}
 
-	if len(config.Name) == 0 {
-		return nil, fmt.Errorf("name cannot be null")
-	}
-
-	request, err := buildRequest(config.ServiceUrl, config.Name, config.Timeout)
+	err := config.validate()
 
 	if err != nil {
-		return nil, fmt.Errorf("error while building request")
+		return err
 	}
 
 	return &Ondemand{

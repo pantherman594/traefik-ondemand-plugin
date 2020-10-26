@@ -1,6 +1,8 @@
 # Traefik Ondemand Plugin
 
 ![Build](https://github.com/acouvreur/traefik-ondemand-plugin/workflows/Build/badge.svg)
+[![Go Report Card](https://goreportcard.com/badge/acouvreur/traefik-ondemand-plugin)](https://goreportcard.com/report/acouvreur/traefik-ondemand-plugin)
+[![License](https://img.shields.io/badge/license-Apache-blue.svg)](https://github.com/acouvreur/traefik-ondemand-plugin/blob/master/LICENSE)
 
 Traefik plugin to scale down to zero containers on docker swarm.
 

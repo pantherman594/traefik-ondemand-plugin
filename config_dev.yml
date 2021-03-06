@@ -4,8 +4,13 @@ http:
       plugin:
         dev:
           serviceUrl: http://ondemand:10000
-          name: TRAEFIK_HACKATHON_whoami
+          names:
+            - TRAEFIK_HACKATHON_whoami
           timeout: 10
+    retry:
+      retry:
+        attempts: 10
+        initialInterval: 1s
 
   services:
     whoami:
@@ -20,4 +25,5 @@ http:
         - "http"
       middlewares:
         - ondemand
+        - retry
       service: "whoami"

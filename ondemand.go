@@ -15,14 +15,14 @@ const (
 
 const defaultTimeoutSeconds = 60
 
-// Net client is a custom client to timeout after 2 seconds if the service is not ready
+// Net client is a custom client to timeout after 20 seconds if the service is not ready
 var netClient = &http.Client{
-	Timeout: time.Second * 2,
+	Timeout: time.Second * 20,
 }
 
 // Config the plugin configuration
 type Config struct {
-	Name       string
+	Names      []string
 	ServiceUrl string
 	Timeout    uint64
 }
@@ -41,9 +41,9 @@ type Ondemand struct {
 	next    http.Handler
 }
 
-func buildRequest(url string, name string, timeout uint64) (string, error) {
+func buildRequest(url string, names []string, timeout uint64) (string, error) {
 	// TODO: Check url validity
-	request := fmt.Sprintf("%s?name=%s&timeout=%d", url, name, timeout)
+	request := fmt.Sprintf("%s?names=%s&timeout=%d", url, strings.Join(names, ","), timeout)
 	return request, nil
 }
 
@@ -53,11 +53,11 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		return nil, fmt.Errorf("serviceUrl cannot be null")
 	}
 
-	if len(config.Name) == 0 {
-		return nil, fmt.Errorf("name cannot be null")
+	if config.Names == nil || len(config.Names) == 0 {
+		return nil, fmt.Errorf("names cannot be empty")
 	}
 
-	request, err := buildRequest(config.ServiceUrl, config.Name, config.Timeout)
+	request, err := buildRequest(config.ServiceUrl, config.Names, config.Timeout)
 
 	if err != nil {
 		return nil, fmt.Errorf("error while building request")
@@ -72,7 +72,6 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 // ServeHTTP retrieve the service status
 func (e *Ondemand) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-
 	status, err := getServiceStatus(e.request)
 
 	if err != nil {
@@ -80,10 +79,24 @@ func (e *Ondemand) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
 		rw.Write([]byte(err.Error()))
 	}
 
-	if status == "started" {
-		// Service started forward request
-		e.next.ServeHTTP(rw, req)
+	i := 0
 
+	for i = 0; status == "starting" && i < 40; {
+		time.Sleep(250 * time.Millisecond)
+		status, err = getServiceStatus(e.request)
+
+		if err != nil {
+			rw.WriteHeader(http.StatusInternalServerError)
+			rw.Write([]byte(err.Error()))
+			return
+		}
+
+		i++
+	}
+
+	if status == "started" {
+		// Service started, forward the request
+		e.next.ServeHTTP(rw, req)
 	} else if status == "starting" {
 		// Service starting, notify client
 		rw.WriteHeader(http.StatusAccepted)
